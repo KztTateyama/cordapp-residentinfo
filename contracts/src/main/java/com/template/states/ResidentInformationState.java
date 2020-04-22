@@ -2,11 +2,13 @@ package com.template.states;
 
 import com.template.contracts.ResidentInformationContract;
 import net.corda.core.contracts.BelongsToContract;
+import net.corda.core.contracts.LinearState;
+import net.corda.core.contracts.UniqueIdentifier;
 import net.corda.core.serialization.ConstructorForDeserialization;
 import net.corda.core.contracts.ContractState;
 import net.corda.core.identity.AbstractParty;
 import net.corda.core.identity.Party;
-import org.checkerframework.checker.nullness.qual.NonNull;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Arrays;
 import java.util.List;
@@ -18,27 +20,36 @@ import java.util.Date;
 // * State *
 // *********
 @BelongsToContract(ResidentInformationContract.class)
-public class ResidentInformationState implements ContractState {
+public class ResidentInformationState implements ContractState,LinearState  {
 
-    @NonNull    public final String     residentName;		// 居住者名
-    @NonNull    public final String     myNumber;			// マイナンバー
-    @NonNull    public final Party      currentCity;		// 現自治体
-    @NonNull    public final String     currentAddress;		// 現住所
-    @NonNull    public final Date       birthday;			// 生年月日
-                public final Party      oldCity;			// 旧自治体
-                public final String     oldAddress; 		// 旧住所
+    public final String     residentName;
+    public final String     myNumber;
+    public final Party      currentCity;
+    public final String     currentAddress;
+    public final Date       birthday;
+    public final Party      oldCity;
+    public final String     oldAddress;
+
+    private final UniqueIdentifier linearId;
 
 
     @ConstructorForDeserialization
-    public ResidentInformationState(String ResidentName,String MyNumber, Party CurrentCity,String CurrentAddress,
-                                   Date Birthday, Party OldCity, String OldAddress) {
-        this.residentName       = ResidentName;
-        this.myNumber           = MyNumber;
-        this.currentCity        = CurrentCity;
-        this.currentAddress     = CurrentAddress;
-        this.birthday           = Birthday;
-        this.oldCity            = OldCity;
-        this.oldAddress         = OldAddress;
+    private ResidentInformationState(String residentName,String myNumber, Party currentCity,String currentAddress,
+                                   Date birthday, Party oldCity, String oldAddress,UniqueIdentifier linearId) {
+        this.residentName       = residentName;
+        this.myNumber           = myNumber;
+        this.currentCity        = currentCity;
+        this.currentAddress     = currentAddress;
+        this.birthday           = birthday;
+        this.oldCity            = oldCity;
+        this.oldAddress         = oldAddress;
+        this.linearId           = linearId;
+    }
+
+    public ResidentInformationState(String residentName,String myNumber, Party currentCity,String currentAddress,
+                                    Date birthday, Party oldCity, String oldAddress) {
+        this(residentName, myNumber, currentCity, currentAddress, birthday, oldCity, oldAddress,new UniqueIdentifier());
+
     }
 
     public Party getOldCity(){ return oldCity; }
@@ -55,14 +66,21 @@ public class ResidentInformationState implements ContractState {
 
     public String getCurrentAddress(){ return  currentAddress; }
 
+    @NotNull
+    @Override
+    public UniqueIdentifier getLinearId() {
+        return linearId;
+    }
+
+    @NotNull
     @Override
     public List<AbstractParty> getParticipants() {
         return Arrays.asList(oldCity,currentCity);
     }
 
     /* withNewCurrentCity
-     * 現在の自治体と現住所を引数の値に置き換える。
-     * また、旧自治体に現自治体の値を、旧住所に現住所を設定する。
+     * change currentcity and Address.
+     * and change oldcity and oldaddress set currentcity and address.
      */
     public ResidentInformationState withNewCurrentCity(Party newCurrentCity,String newCurrentAddress) {
         return new ResidentInformationState(residentName, myNumber,newCurrentCity, newCurrentAddress,birthday, currentCity, currentAddress);

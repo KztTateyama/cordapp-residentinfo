@@ -1,19 +1,29 @@
 package com.template.flows;
 
 import co.paralleluniverse.fibers.Suspendable;
+import com.sun.istack.NotNull;
+import com.template.contracts.ResidentInformationContract.Commands.ChangeInformation;
 import com.template.contracts.ResidentInformationContract;
 import com.template.states.ResidentInformationState;
 import net.corda.core.contracts.Command;
 import net.corda.core.contracts.ContractState;
+import net.corda.core.contracts.StateAndRef;
+import net.corda.core.contracts.UniqueIdentifier;
 import net.corda.core.crypto.SecureHash;
 import net.corda.core.flows.*;
 import net.corda.core.identity.AbstractParty;
 import net.corda.core.identity.Party;
+import net.corda.core.node.services.Vault;
+import net.corda.core.node.services.vault.QueryCriteria;
 import net.corda.core.transactions.SignedTransaction;
 import net.corda.core.transactions.TransactionBuilder;
 import net.corda.core.utilities.ProgressTracker;
 
+
+import java.security.PublicKey;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static net.corda.core.contracts.ContractsDSL.requireThat;
@@ -25,67 +35,87 @@ public class ChangeInformationFlow {
 
     @InitiatingFlow
     @StartableByRPC
-    public class InitiatorFlow extends FlowLogic<Void> {
+    public static class InitiatorFlow extends FlowLogic<SignedTransaction> {
         private final ProgressTracker progressTracker = new ProgressTracker();
 
-        private final Party  currentCity;
-        private final String residentName;
-        private final String myNumber;
-
-        public InitiatorFlow(Party currentCity,String residentName, String myNumber) {
-            this.currentCity = currentCity;
-            this.residentName = residentName;
-            this.myNumber = myNumber;
+        private final UniqueIdentifier stateLinearId;
+        private final Party newCity;
+        private final String newAddress;
+        
+        public InitiatorFlow(UniqueIdentifier stateLinearId,Party newCity,String newAddress) {
+            this.stateLinearId = stateLinearId;
+            this.newCity = newCity;
+            this.newAddress = newAddress;
         }
 
-        @Override
-        public ProgressTracker getProgressTracker() {
-            return progressTracker;
-        }
+       @Override
+       public ProgressTracker getProgressTracker() {
+           return progressTracker;
+       }
 
-        @Suspendable
-        @Override
-        public SignedTransaction call() throws FlowException {
-            // Step 1. Get a reference to the notary service on our network and our key pair.
-            // Note: ongoing work to support multiple notary identities is still in progress.
-            final Party notary = getServiceHub().getNetworkMapCache().getNotaryIdentities().get(0);
+       @Suspendable
+       @Override
+       public SignedTransaction call() throws FlowException {
 
-            // Step 2. Create a new issue command.
-            // Remember that a command is a CommandData object and a list of CompositeKeys
-            final Command<ResidentInformationContract.Commands.RegisterInformation> registerCommand = new Command<>(
-                    new ResidentInformationContract.Commands.RegisterInformation(), residentA.getParticipants()
-                    .stream().map(AbstractParty::getOwningKey)
-                    .collect(Collectors.toList()));
+           // 1. Retrieve the IOU State from the vault using LinearStateQueryCriteria
+           List<UUID> listOfLinearIds = new ArrayList<>();
+           listOfLinearIds.add(stateLinearId.getId());
+           QueryCriteria queryCriteria = new QueryCriteria.LinearStateQueryCriteria(null, listOfLinearIds);
 
-            // Step 3. Create a new TransactionBuilder object.
-            final TransactionBuilder builder = new TransactionBuilder(notary);
+           // 2. Get a reference to the inputState data that we are going to settle.
+           Vault.Page results = getServiceHub().getVaultService().queryBy(ResidentInformationState.class, queryCriteria);
+           StateAndRef inputStateAndRefToChange = (StateAndRef) results.getStates().get(0);
+           ResidentInformationState inputStateToChange = (ResidentInformationState) inputStateAndRefToChange.getState().getData();
 
-            // Step 4. Add the iou as an output state, as well as a command to the transaction builder.
-            builder.addOutputState(residentA, ResidentInformationContract.IOU_CONTRACT_ID);
-            builder.addCommand(registerCommand);
+           // 3. We should now get some of the components required for to execute the transaction
+           // Here we get a reference to the default notary and instantiate a transaction builder.
+           Party notary = getServiceHub().getNetworkMapCache().getNotaryIdentities().get(0);
+           TransactionBuilder tb = new TransactionBuilder(notary);
 
-            // Step 5. Verify and sign it with our KeyPair.
-            builder.verify(getServiceHub());
-            final SignedTransaction ptx = getServiceHub().signInitialTransaction(builder);
+           // 4. Construct a transfer command to be added to the transaction.
+           List<PublicKey> listOfRequiredSigners = inputStateToChange.getParticipants()
+                   .stream().map(AbstractParty::getOwningKey)
+                   .collect(Collectors.toList());
+           listOfRequiredSigners.add(newCity.getOwningKey());
 
+           Command<ChangeInformation> command = new Command<>(
+                   new ChangeInformation(),
+                   listOfRequiredSigners
+           );
 
-            // Step 6. Collect the other party's signature using the SignTransactionFlow.
-            List<Party> otherParties = residentA.getParticipants()
-                    .stream().map(el -> (Party) el)
-                    .collect(Collectors.toList());
+           // 5. Add the command to the transaction using the TransactionBuilder.
+           tb.addCommand(command);
 
-            otherParties.remove(getOurIdentity());
+           // 6. Add input and output states to flow using the TransactionBuilder.
+           tb.addInputState(inputStateAndRefToChange);
+           tb.addOutputState(inputStateToChange.withNewCurrentCity(newCity,newAddress), ResidentInformationContract.IOU_CONTRACT_ID);
 
-            List<FlowSession> sessions = otherParties
-                    .stream().map(el -> initiateFlow(el))
-                    .collect(Collectors.toList());
+           // 7. Ensure that this flow is being executed by the current lender.
+           if (!inputStateToChange.currentCity.getOwningKey().equals(getOurIdentity().getOwningKey())) {
+               throw new IllegalArgumentException("This flow must be run by the current lender.");
+           }
 
-            SignedTransaction stx = subFlow(new CollectSignaturesFlow(ptx, sessions));
+           // 8. Verify and sign the transaction
+           tb.verify(getServiceHub());
+           SignedTransaction partiallySignedTransaction = getServiceHub().signInitialTransaction(tb);
 
-            // Step 7. Assuming no exceptions, we can now finalise the transaction
-            return subFlow(new FinalityFlow(stx, sessions));
+           // 9. Collect all of the required signatures from other Corda nodes using the CollectSignaturesFlow
+           List<FlowSession> sessions = new ArrayList<>();
 
-        }
+           for (AbstractParty participant: inputStateToChange.getParticipants()) {
+               Party partyToInitiateFlow = (Party) participant;
+               if (!partyToInitiateFlow.getOwningKey().equals(getOurIdentity().getOwningKey())) {
+                   sessions.add(initiateFlow(partyToInitiateFlow));
+               }
+           }
+
+           sessions.add(initiateFlow(newCity));
+           SignedTransaction fullySignedTransaction = subFlow(new CollectSignaturesFlow(partiallySignedTransaction, sessions));
+           /* 10. Return the output of the FinalityFlow which sends the transaction to the notary for verification
+            *     and the causes it to be persisted to the vault of appropriate nodes.
+            */
+           return subFlow(new FinalityFlow(fullySignedTransaction, sessions));
+       }
     }
 
     /**
@@ -115,7 +145,7 @@ public class ChangeInformationFlow {
                 protected void checkTransaction(SignedTransaction stx) {
                     requireThat(require -> {
                         ContractState output = stx.getTx().getOutputs().get(0).getData();
-                        require.using("This must be an IOU transaction", output instanceof IOUState);
+                        require.using("This must be an IOU transaction", output instanceof ResidentInformationState);
                         return null;
                     });
                     // Once the transaction has verified, initialize txWeJustSignedID variable.

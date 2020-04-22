@@ -1,36 +1,41 @@
 package com.template.flows;
 
-//import com.google.common.collect.ImmutableList; <- cause of Gradle error ?
+//import com.google.common.collect.ImmutableList;
+
 import co.paralleluniverse.fibers.Suspendable;
+import com.template.contracts.ResidentInformationContract;
 import com.template.states.ResidentInformationState;
 import net.corda.core.contracts.Command;
+import net.corda.core.contracts.StateAndRef;
+import net.corda.core.contracts.UniqueIdentifier;
 import net.corda.core.flows.*;
 import net.corda.core.identity.Party;
+import net.corda.core.node.services.Vault;
+import net.corda.core.node.services.vault.QueryCriteria;
 import net.corda.core.transactions.SignedTransaction;
 import net.corda.core.transactions.TransactionBuilder;
 import net.corda.core.utilities.ProgressTracker;
 
-import java.util.*;
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
-
-import com.template.contracts.ResidentInformationContract;
+import java.util.UUID;
 
 // ******************
 // * Initiator flow *
 // ******************
-public class RegisterInformationFlow{
+public class DeleteInformationFlow {
 
     @InitiatingFlow(version = 2)
     @StartableByRPC
     public static class InitiatorFlow extends FlowLogic<SignedTransaction> {
         private final ProgressTracker progressTracker = new ProgressTracker();
 
-        private final ResidentInformationState residentA;
+        private final UniqueIdentifier stateLinearId;
+        private final Party currentCity;
 
-        public InitiatorFlow(ResidentInformationState resident) {
-            this.residentA = resident;
+        public InitiatorFlow(UniqueIdentifier stateLinearId,Party currentCity) {
+            this.stateLinearId = stateLinearId;
+            this.currentCity = currentCity;
         }
 
         @Override
@@ -41,26 +46,31 @@ public class RegisterInformationFlow{
         @Suspendable
         @Override
         public SignedTransaction call() throws FlowException {
+
+            // 1. Retrieve the IOU State from the vault using LinearStateQueryCriteria
+            List<UUID> listOfLinearIds = new ArrayList<>();
+            listOfLinearIds.add(stateLinearId.getId());
+            QueryCriteria queryCriteria = new QueryCriteria.LinearStateQueryCriteria(null, listOfLinearIds);
+
+            // 2. Get a reference to the inputState data that we are going to settle.
+            Vault.Page results = getServiceHub().getVaultService().queryBy(ResidentInformationState.class, queryCriteria);
+            StateAndRef inputStateAndRefToChange = (StateAndRef) results.getStates().get(0);
+//            ResidentInformationState inputStateToChange = (ResidentInformationState) inputStateAndRefToChange.getState().getData();
+
             // Step 1. Get a reference to the notary service on our network and our key pair.
             // Note: ongoing work to support multiple notary identities is still in progress.
             final Party notary = getServiceHub().getNetworkMapCache().getNotaryIdentities().get(0);
 
             // Step 2. Create a new issue command.
-            // Remember that a command is a CommandData object and a list of CompositeKeys
-//            final Command<ResidentInformationContract.Commands.RegisterInformation> registerCommand = new Command<>(
-//                    new ResidentInformationContract.Commands.RegisterInformation(), residentA.getParticipants()
-//                    .stream().map(AbstractParty::getOwningKey)
-//                    .collect(Collectors.toList()));
-
-            final Command<ResidentInformationContract.Commands.RegisterInformation> registerCommand = new Command<>(
-                    new ResidentInformationContract.Commands.RegisterInformation(),residentA.getCurrentCity().getOwningKey());
+            final Command<ResidentInformationContract.Commands.DeleteInformation> deleteCommand = new Command<>(
+                    new ResidentInformationContract.Commands.DeleteInformation(),currentCity.getOwningKey());
 
             // Step 3. Create a new TransactionBuilder object.
             final TransactionBuilder builder = new TransactionBuilder(notary);
 
             // Step 4. Add the iou as an output state, as well as a command to the transaction builder.
-            builder.addOutputState(residentA, ResidentInformationContract.IOU_CONTRACT_ID);
-            builder.addCommand(registerCommand);
+            builder.addInputState(inputStateAndRefToChange);
+            builder.addCommand(deleteCommand);
 
             // Step 5. Verify and sign it with our KeyPair.
             builder.verify(getServiceHub());
@@ -84,10 +94,10 @@ public class RegisterInformationFlow{
 
 //            return subFlow(new FinalityFlow(ptx, ImmutableList.of()));
 
-//            List<FlowSession> sessions = Collections.emptyList();   // <- error
+//            List<FlowSession> sessions = Collections.emptyList();
 
-//            return subFlow(new FinalityFlow(ptx, sessions));        // <- error
-            return subFlow(new FinalityFlow(ptx));                // <- normal
+            //return subFlow(new FinalityFlow(ptx, sessions));      // <- error
+            return subFlow(new FinalityFlow(ptx));                  // <- normal
 
         }
     }

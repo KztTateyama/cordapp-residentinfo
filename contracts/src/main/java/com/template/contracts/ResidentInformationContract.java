@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 // ************
 // * Contract *
 // ************
-//@LegalProseReference(uri = "<prose_contract_uri>")
+@LegalProseReference(uri = "<prose_contract_uri>")
 public class ResidentInformationContract implements Contract {
     // This is used to identify our contract when building a transaction.
     public static final String IOU_CONTRACT_ID = "com.template.contracts.ResidentInformationContract";
@@ -52,19 +52,18 @@ public class ResidentInformationContract implements Contract {
                 require.using("No inputs should be consumed when issuing an IOU.", tx.getInputStates().size() == 0);
                 require.using( "Only one output state should be created when issuing an IOU.", tx.getOutputStates().size() == 1);
 
-                ResidentInformationState outputState = tx.outputsOfType(ResidentInformationState.class).get(0);
-                require.using( "A newly issued RegisterInformation must have a resident Name.", outputState.getResidentName() != null);
-                require.using( "A newly issued RegisterInformation must have a myNumber.", outputState.getMyNumber() != null);
-                require.using( "A newly issued RegisterInformation must have a birthday.", outputState.getBirthday() != null);
-                require.using( "A newly issued RegisterInformation must have a current address.", outputState.getCurrentAddress() != null);
+                List<ResidentInformationState> desiredOutputStates = tx.outputsOfType(ResidentInformationState.class);
+                ResidentInformationState outputState = desiredOutputStates.get(0);
+                require.using( "A newly issued RegisterInformation must have a resident Name.", !outputState.getResidentName().equals(""));
+                require.using( "A newly issued RegisterInformation must have a myNumber.", !outputState.getMyNumber().equals(""));
+                require.using( "A newly issued RegisterInformation must have a current address.", !outputState.getCurrentAddress().equals(""));
 
                 final List<PublicKey> requiredSigners = command.getSigners();
-                final List<PublicKey> expectedSigners = outputState.getParticipants()
-                        .stream().map(AbstractParty::getOwningKey)
-                        .collect(Collectors.toList());
+                List<PublicKey> expectedSigners = new ArrayList<>();
+                expectedSigners.add(outputState.currentCity.getOwningKey());
 
                 // Verifies right number of signers are required in the command
-                if ( requiredSigners.size() < expectedSigners.size()) {
+                if ( requiredSigners.size() != expectedSigners.size()) {
                     throw new IllegalArgumentException(String.format("%s requires exactly %d signers.", commandName, expectedSigners.size()));
                 }
 
@@ -82,13 +81,12 @@ public class ResidentInformationContract implements Contract {
 
             requireThat(require -> {
 
-                require.using("An IOU transfer transaction should only consume one input state.", tx.getInputStates().size() == 1);
-                require.using("An IOU transfer transaction should only create one output state.", tx.getOutputStates().size() == 1);
+                require.using("An IOU change transaction should only consume one input state.", tx.getInputStates().size() == 1);
+                require.using("An IOU change transaction should only create one output state.", tx.getOutputStates().size() == 1);
 
                 // Copy of input with new currentCity;
                 ResidentInformationState inputState = tx.inputsOfType(ResidentInformationState.class).get(0);
                 ResidentInformationState outputState = tx.outputsOfType(ResidentInformationState.class).get(0);
-                ResidentInformationState checkOutputState = outputState.withNewCurrentCity(inputState.getCurrentCity(),inputState.getCurrentAddress());
 
                 require.using("residentName is same between input state and output state.",
                         outputState.residentName.equals(inputState.residentName));
@@ -109,14 +107,13 @@ public class ResidentInformationContract implements Contract {
 
                 List<PublicKey> listOfPublicKeys = new ArrayList<>();
                 listOfPublicKeys.add(inputState.currentCity.getOwningKey());
-                listOfPublicKeys.add(checkOutputState.currentCity.getOwningKey());
+                listOfPublicKeys.add(outputState.currentCity.getOwningKey());
 
-                Set<PublicKey> listOfParticipantPublicKeys = inputState.getParticipants().stream().map(AbstractParty::getOwningKey).collect(Collectors.toSet());
-                listOfParticipantPublicKeys.add(outputState.currentCity.getOwningKey());
+                Set<PublicKey> listOfParticipantPublicKeys = outputState.getParticipants().stream().map(AbstractParty::getOwningKey).collect(Collectors.toSet());
 
                 List<PublicKey> arrayOfSigners = command.getSigners();
-                Set<PublicKey> setOfSigners = new HashSet<PublicKey>(arrayOfSigners);
-                require.using("The borrower, old lender and new lender only must sign an IOU transfer transaction", setOfSigners.equals(listOfParticipantPublicKeys) && setOfSigners.size() == 2);
+                Set<PublicKey> setOfSigners = new HashSet<>(arrayOfSigners);
+                require.using("The borrower, old city and new city only must sign an IOU change transaction", setOfSigners.equals(listOfParticipantPublicKeys) && setOfSigners.size() == 2);
 
                 return null;
             });
@@ -127,12 +124,24 @@ public class ResidentInformationContract implements Contract {
 
             requireThat(require -> {
 
+                require.using("No inputs should be consumed when issuing an IOU.", tx.getInputStates().size() == 1);
+                require.using( "Only one output state should be created when issuing an IOU.", tx.getOutputStates().size() == 0);
+
                 ResidentInformationState inputState = tx.inputsOfType(ResidentInformationState.class).get(0);
 
-                List<PublicKey> listOfPublicKeys = new ArrayList<>();
-                listOfPublicKeys.add(inputState.currentCity.getOwningKey());
-                Set<PublicKey> setOfSigners = new HashSet<PublicKey>(listOfPublicKeys);
-                require.using("Both lender and borrower must sign IOU settle transaction.", setOfSigners.equals(listOfPublicKeys));
+                final List<PublicKey> requiredSigners = command.getSigners();
+                List<PublicKey> expectedSigners = new ArrayList<>();
+                expectedSigners.add(inputState.currentCity.getOwningKey());
+
+                // Verifies right number of signers are required in the command
+                if ( requiredSigners.size() != expectedSigners.size()) {
+                    throw new IllegalArgumentException(String.format("%s requires exactly %d signers.", commandName, expectedSigners.size()));
+                }
+
+                // Verifies required signers covers all participants in the purchase order
+                if( !requiredSigners.containsAll(expectedSigners) ) {
+                    throw new IllegalArgumentException(String.format("%s requires signatures from all contract participants."));
+                }
 
                 return null;
             });
