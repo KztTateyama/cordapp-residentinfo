@@ -18,15 +18,13 @@ import net.corda.core.node.services.vault.QueryCriteria;
 import net.corda.core.transactions.SignedTransaction;
 import net.corda.core.transactions.TransactionBuilder;
 import net.corda.core.utilities.ProgressTracker;
-
+import static net.corda.core.contracts.ContractsDSL.requireThat;
 
 import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
-import static net.corda.core.contracts.ContractsDSL.requireThat;
 
 // ******************
 // * Initiator flow *
@@ -83,23 +81,21 @@ public class ChangeInformationFlow {
                    listOfRequiredSigners
            );
 
-           // 5. Add the command to the transaction using the TransactionBuilder.
-           tb.addCommand(command);
-
-           // 6. Add input and output states to flow using the TransactionBuilder.
+           // 5. Add input and output states and command to flow using the TransactionBuilder.
            tb.addInputState(inputStateAndRefToChange);
            tb.addOutputState(inputStateToChange.withNewCurrentCity(newCity,newAddress), ResidentInformationContract.IOU_CONTRACT_ID);
+           tb.addCommand(command);
 
-           // 7. Ensure that this flow is being executed by the current lender.
+           // 6. Ensure that this flow is being executed by the current lender.
            if (!inputStateToChange.currentCity.getOwningKey().equals(getOurIdentity().getOwningKey())) {
                throw new IllegalArgumentException("This flow must be run by the current lender.");
            }
 
-           // 8. Verify and sign the transaction
+           // 7. Verify and sign the transaction
            tb.verify(getServiceHub());
            SignedTransaction partiallySignedTransaction = getServiceHub().signInitialTransaction(tb);
 
-           // 9. Collect all of the required signatures from other Corda nodes using the CollectSignaturesFlow
+           // 8. Collect all of the required signatures from other Corda nodes using the CollectSignaturesFlow
            List<FlowSession> sessions = new ArrayList<>();
 
            for (AbstractParty participant: inputStateToChange.getParticipants()) {
@@ -111,7 +107,7 @@ public class ChangeInformationFlow {
 
            sessions.add(initiateFlow(newCity));
            SignedTransaction fullySignedTransaction = subFlow(new CollectSignaturesFlow(partiallySignedTransaction, sessions));
-           /* 10. Return the output of the FinalityFlow which sends the transaction to the notary for verification
+           /* 9. Return the output of the FinalityFlow which sends the transaction to the notary for verification
             *     and the causes it to be persisted to the vault of appropriate nodes.
             */
            return subFlow(new FinalityFlow(fullySignedTransaction, sessions));

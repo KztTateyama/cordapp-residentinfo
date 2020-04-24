@@ -1,18 +1,17 @@
 package com.template.contracts;
 
 import com.template.states.ResidentInformationState;
+import static com.template.TestUtils.*;
 import net.corda.core.contracts.CommandData;
 import net.corda.core.contracts.TypeOnlyCommandData;
 import net.corda.testing.contracts.DummyState;
 import net.corda.testing.node.MockServices;
-import org.junit.Test;
+import static net.corda.testing.node.NodeTestUtils.ledger;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
-
-import static com.template.TestUtils.*;
-import static net.corda.testing.node.NodeTestUtils.ledger;
+import org.junit.Test;
 
 public class DeleteInformationTest {
 
@@ -34,34 +33,29 @@ public class DeleteInformationTest {
     @Test
     public void mustIncludeDeleteCommand() {
 
-        try{
-            ResidentInformationState iou =
-                new ResidentInformationState(
-                    "Yamada Taro",
-                    "123456789012",
-                    BCity.getParty(),
-                    "BCity YYY-ZZZ",
-                    sdformat.parse("1990-02-10"),
-                    ACity.getParty(),
-                   "ACity XXX-YYY"
-                 );
+        ResidentInformationState iou =
+            new ResidentInformationState(
+                "Yamada Taro",
+                "123456789012",
+                BCity.getParty(),
+                "BCity YYY-ZZZ",
+                "1990-02-10",
+               "ACity XXX-YYY"
+             );
 
-            ledger(ledgerServices, l -> {
-                l.transaction(tx -> {
-                    tx.input(ResidentInformationContract.IOU_CONTRACT_ID, iou);
-                    tx.command(BCity.getPublicKey(), new Commands.DummyCommand()); // Wrong type.
-                    return tx.fails();
-                });
-                l.transaction(tx -> {
-                    tx.input(ResidentInformationContract.IOU_CONTRACT_ID, iou);
-                    tx.command(BCity.getPublicKey(), new ResidentInformationContract.Commands.DeleteInformation()); // Correct type.
-                    return tx.verifies();
-                });
-                return null;
+        ledger(ledgerServices, l -> {
+            l.transaction(tx -> {
+                tx.input(ResidentInformationContract.IOU_CONTRACT_ID, iou);
+                tx.command(BCity.getPublicKey(), new Commands.DummyCommand()); // Wrong type.
+                return tx.fails();
             });
-        } catch (ParseException e){
-            e.printStackTrace();
-        }
+            l.transaction(tx -> {
+                tx.input(ResidentInformationContract.IOU_CONTRACT_ID, iou);
+                tx.command(BCity.getPublicKey(), new ResidentInformationContract.Commands.DeleteInformation()); // Correct type.
+                return tx.verifies();
+            });
+            return null;
+        });
     }
 
     /**
@@ -72,40 +66,35 @@ public class DeleteInformationTest {
     @Test
     public void issueTransactionMustHaveNoOutputs() {
 
-        try{
-            ResidentInformationState iou =
-                    new ResidentInformationState(
-                            "Yamada Taro",
-                            "123456789012",
-                            BCity.getParty(),
-                            "BCity YYY-ZZZ",
-                            sdformat.parse("1990-02-10"),
-                            ACity.getParty(),
-                            "ACity XXX-YYY"
-                    );
+        ResidentInformationState iou =
+                new ResidentInformationState(
+                        "Yamada Taro",
+                        "123456789012",
+                        BCity.getParty(),
+                        "BCity YYY-ZZZ",
+                        "1990-02-10",
+                        "ACity XXX-YYY"
+                );
 
-            ledger(ledgerServices, l -> {
-                l.transaction(tx -> {
-                    tx.output(ResidentInformationContract.IOU_CONTRACT_ID, new DummyState());
-                    tx.command(BCity.getPublicKey(), new ResidentInformationContract.Commands.DeleteInformation()); // Correct type.
-                    return tx.fails();
-                });
-                l.transaction(tx -> {
-                    tx.input(ResidentInformationContract.IOU_CONTRACT_ID, new DummyState());
-                    tx.output(ResidentInformationContract.IOU_CONTRACT_ID, iou);
-                    tx.command(BCity.getPublicKey(), new ResidentInformationContract.Commands.DeleteInformation()); // Correct type.
-                    return tx.fails();
-                });
-                l.transaction(tx -> {
-                    tx.input(ResidentInformationContract.IOU_CONTRACT_ID, iou);
-                    tx.command(BCity.getPublicKey(), new ResidentInformationContract.Commands.DeleteInformation()); // Correct type.
-                    return tx.verifies();
-                });
-                return null;
+        ledger(ledgerServices, l -> {
+            l.transaction(tx -> {
+                tx.output(ResidentInformationContract.IOU_CONTRACT_ID, new DummyState());
+                tx.command(BCity.getPublicKey(), new ResidentInformationContract.Commands.DeleteInformation()); // Wrong type.
+                return tx.fails();
             });
-        } catch (ParseException e){
-            e.printStackTrace();
-        }
+            l.transaction(tx -> {
+                tx.input(ResidentInformationContract.IOU_CONTRACT_ID, new DummyState());
+                tx.output(ResidentInformationContract.IOU_CONTRACT_ID, iou);
+                tx.command(BCity.getPublicKey(), new ResidentInformationContract.Commands.DeleteInformation()); // Wrong type.
+                return tx.fails();
+            });
+            l.transaction(tx -> {
+                tx.input(ResidentInformationContract.IOU_CONTRACT_ID, iou);
+                tx.command(BCity.getPublicKey(), new ResidentInformationContract.Commands.DeleteInformation()); // Correct type.
+                return tx.verifies();
+            });
+            return null;
+        });
     }
 
     /**
@@ -115,35 +104,30 @@ public class DeleteInformationTest {
     @Test
     public void issueTransactionMustHaveOneInput() {
 
-        try{
-            ResidentInformationState iou =
-                    new ResidentInformationState(
-                            "Yamada Taro",
-                            "123456789012",
-                            BCity.getParty(),
-                            "BCity YYY-ZZZ",
-                            sdformat.parse("1990-02-10"),
-                            ACity.getParty(),
-                            "ACity XXX-YYY"
-                    );
+        ResidentInformationState iou =
+                new ResidentInformationState(
+                        "Yamada Taro",
+                        "123456789012",
+                        BCity.getParty(),
+                        "BCity YYY-ZZZ",
+                        "1990-02-10",
+                        "ACity XXX-YYY"
+                );
 
-            ledger(ledgerServices, l -> {
-                l.transaction(tx -> {
-                    tx.input(ResidentInformationContract.IOU_CONTRACT_ID, iou); // Two outputs fails.
-                    tx.input(ResidentInformationContract.IOU_CONTRACT_ID, iou);
-                    tx.command(BCity.getPublicKey(), new ResidentInformationContract.Commands.DeleteInformation()); // Correct type.
-                    return tx.fails();
-                });
-                l.transaction(tx -> {
-                    tx.input(ResidentInformationContract.IOU_CONTRACT_ID, iou);
-                    tx.command(BCity.getPublicKey(), new ResidentInformationContract.Commands.DeleteInformation()); // Correct type.
-                    return tx.verifies();
-                });
-                return null;
+        ledger(ledgerServices, l -> {
+            l.transaction(tx -> {
+                tx.input(ResidentInformationContract.IOU_CONTRACT_ID, iou); // Two outputs fails.
+                tx.input(ResidentInformationContract.IOU_CONTRACT_ID, iou);
+                tx.command(BCity.getPublicKey(), new ResidentInformationContract.Commands.DeleteInformation()); // Wrong type.
+                return tx.fails();
             });
-        } catch (ParseException e){
-            e.printStackTrace();
-        }
+            l.transaction(tx -> {
+                tx.input(ResidentInformationContract.IOU_CONTRACT_ID, iou);
+                tx.command(BCity.getPublicKey(), new ResidentInformationContract.Commands.DeleteInformation()); // Correct type.
+                return tx.verifies();
+            });
+            return null;
+        });
     }
 
     /**
@@ -153,45 +137,34 @@ public class DeleteInformationTest {
     @Test
     public void signerCheckOnlyCurrentCity() {
 
-        try{
-            ResidentInformationState iou =
-                    new ResidentInformationState(
-                            "Yamada Taro",
-                            "123456789012",
-                            BCity.getParty(),
-                            "BCity YYY-ZZZ",
-                            sdformat.parse("1990-02-10"),
-                            ACity.getParty(),
-                            "ACity XXX-YYY"
-                    );
+        ResidentInformationState iou =
+                new ResidentInformationState(
+                        "Yamada Taro",
+                        "123456789012",
+                        BCity.getParty(),
+                        "BCity YYY-ZZZ",
+                        "1990-02-10",
+                        "ACity XXX-YYY"
+                );
 
-            ledger(ledgerServices, l -> {
-                l.transaction(tx -> {
-                    tx.input(ResidentInformationContract.IOU_CONTRACT_ID, iou);
-//                    tx.command(Arrays.asList(XCity.getPublicKey()), new ResidentInformationContract.Commands.DeleteInformation()); // Correct type.
-                    tx.command(XCity.getPublicKey(), new ResidentInformationContract.Commands.DeleteInformation()); // Correct type.
-                    return tx.fails();
-                });
-                l.transaction(tx -> {
-                    tx.input(ResidentInformationContract.IOU_CONTRACT_ID, iou);
-                    tx.command(ACity.getPublicKey(), new ResidentInformationContract.Commands.DeleteInformation()); // Correct type.
-                    return tx.fails();
-                });
-                l.transaction(tx -> {
-                    tx.input(ResidentInformationContract.IOU_CONTRACT_ID, iou);
-                    tx.command(Arrays.asList(ACity.getPublicKey(), BCity.getPublicKey()), new ResidentInformationContract.Commands.DeleteInformation()); // Correct type.
-                    return tx.fails();
-                });
-                l.transaction(tx -> {
-                    tx.input(ResidentInformationContract.IOU_CONTRACT_ID, iou);
-                    tx.command(BCity.getPublicKey(), new ResidentInformationContract.Commands.DeleteInformation()); // Correct type.
-                    return tx.verifies();
-                });
-                return null;
+        ledger(ledgerServices, l -> {
+            l.transaction(tx -> {
+                tx.input(ResidentInformationContract.IOU_CONTRACT_ID, iou);
+                tx.command(ACity.getPublicKey(), new ResidentInformationContract.Commands.DeleteInformation()); // Correct type.
+                return tx.fails();
             });
-        } catch (ParseException e){
-            e.printStackTrace();
-        }
+            l.transaction(tx -> {
+                tx.input(ResidentInformationContract.IOU_CONTRACT_ID, iou);
+                tx.command(Arrays.asList(ACity.getPublicKey(), BCity.getPublicKey()), new ResidentInformationContract.Commands.DeleteInformation()); // Correct type.
+                return tx.fails();
+            });
+            l.transaction(tx -> {
+                tx.input(ResidentInformationContract.IOU_CONTRACT_ID, iou);
+                tx.command(BCity.getPublicKey(), new ResidentInformationContract.Commands.DeleteInformation()); // Correct type.
+                return tx.verifies();
+            });
+            return null;
+        });
     }
 
 }

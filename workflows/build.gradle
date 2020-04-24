@@ -57,6 +57,10 @@ dependencies {
 
     // CorDapp dependencies.
     cordapp project(":contracts")
+    // Corda webserver dependencies
+    cordaCompile "$corda_release_group:corda-webserver-impl:$corda_webserver_version"
+    cordaRuntime "$corda_release_group:corda-webserver:$corda_webserver_version"
+    
 }
 
 task integrationTest(type: Test, dependsOn: []) {

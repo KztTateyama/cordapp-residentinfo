@@ -1,7 +1,7 @@
 package com.template.flows;
 
-//import com.google.common.collect.ImmutableList; <- cause of Gradle error ?
 import co.paralleluniverse.fibers.Suspendable;
+import com.template.contracts.ResidentInformationContract;
 import com.template.states.ResidentInformationState;
 import net.corda.core.contracts.Command;
 import net.corda.core.flows.*;
@@ -10,12 +10,8 @@ import net.corda.core.transactions.SignedTransaction;
 import net.corda.core.transactions.TransactionBuilder;
 import net.corda.core.utilities.ProgressTracker;
 
-import java.util.*;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
-
-import com.template.contracts.ResidentInformationContract;
 
 // ******************
 // * Initiator flow *
@@ -27,10 +23,20 @@ public class RegisterInformationFlow{
     public static class InitiatorFlow extends FlowLogic<SignedTransaction> {
         private final ProgressTracker progressTracker = new ProgressTracker();
 
-        private final ResidentInformationState residentA;
+        public final String     residentName;
+        public final String     myNumber;
+        public final Party      currentCity;
+        public final String     currentAddress;
+        public final String     birthday;
+        public final String     oldAddress;
 
-        public InitiatorFlow(ResidentInformationState resident) {
-            this.residentA = resident;
+        public InitiatorFlow(String residentName, String myNumber, Party  currentCity, String  currentAddress, String birthday) {
+            this.residentName      = residentName;
+            this.myNumber          = myNumber;
+            this.currentCity       = currentCity;
+            this.currentAddress    = currentAddress;
+            this.birthday          = birthday;
+            this.oldAddress        = null;
         }
 
         @Override
@@ -45,12 +51,19 @@ public class RegisterInformationFlow{
             // Note: ongoing work to support multiple notary identities is still in progress.
             final Party notary = getServiceHub().getNetworkMapCache().getNotaryIdentities().get(0);
 
+            // Step Create outputState
+            ResidentInformationState residentA =
+                    new ResidentInformationState(
+                            residentName,
+                            myNumber,
+                            currentCity,
+                            currentAddress,
+                            birthday,
+                            oldAddress
+                    );
+
             // Step 2. Create a new issue command.
             // Remember that a command is a CommandData object and a list of CompositeKeys
-//            final Command<ResidentInformationContract.Commands.RegisterInformation> registerCommand = new Command<>(
-//                    new ResidentInformationContract.Commands.RegisterInformation(), residentA.getParticipants()
-//                    .stream().map(AbstractParty::getOwningKey)
-//                    .collect(Collectors.toList()));
 
             final Command<ResidentInformationContract.Commands.RegisterInformation> registerCommand = new Command<>(
                     new ResidentInformationContract.Commands.RegisterInformation(),residentA.getCurrentCity().getOwningKey());
@@ -59,6 +72,7 @@ public class RegisterInformationFlow{
             final TransactionBuilder builder = new TransactionBuilder(notary);
 
             // Step 4. Add the iou as an output state, as well as a command to the transaction builder.
+
             builder.addOutputState(residentA, ResidentInformationContract.IOU_CONTRACT_ID);
             builder.addCommand(registerCommand);
 
@@ -66,28 +80,10 @@ public class RegisterInformationFlow{
             builder.verify(getServiceHub());
             final SignedTransaction ptx = getServiceHub().signInitialTransaction(builder);
 
-
-              // Step 6. Collect the other party's signature using the SignTransactionFlow.
-//            List<Party> otherParties = residentA.getParticipants()
-//                    .stream().map(el -> (Party) el)
-//                    .collect(Collectors.toList());
-
-//            otherParties.remove(getOurIdentity());
-
-//            SignedTransaction stx = subFlow(new CollectSignaturesFlow(ptx, sessions));
-//
-//            // Step 7. Assuming no exceptions, we can now finalise the transaction
-//            return subFlow(new FinalityFlow(stx, sessions));
-
-//            List<FlowSession> sessions = !getServiceHub().getMyInfo().isLegalIdentity(notary)
-//                    ? Collections.singletonList(initiateFlow(notary)):Collections.emptyList();
-
-//            return subFlow(new FinalityFlow(ptx, ImmutableList.of()));
-
-//            List<FlowSession> sessions = Collections.emptyList();   // <- error
-
-//            return subFlow(new FinalityFlow(ptx, sessions));        // <- error
-            return subFlow(new FinalityFlow(ptx));                // <- normal
+            // Step 6. The second argument of FinalityFlow should be empty,
+            // as no signatures on other nodes are needed.
+            List<FlowSession> sessions = Collections.emptyList();
+            return subFlow(new FinalityFlow(ptx, sessions));
 
         }
     }

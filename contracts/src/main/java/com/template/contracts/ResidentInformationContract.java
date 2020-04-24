@@ -105,15 +105,15 @@ public class ResidentInformationContract implements Contract {
 
                 require.using("The currentCity property must change in a transfer.", !outputState.currentCity.getOwningKey().equals(inputState.currentCity.getOwningKey()));
 
+                // Compare State key and Signers key for equality.
                 List<PublicKey> listOfPublicKeys = new ArrayList<>();
-                listOfPublicKeys.add(inputState.currentCity.getOwningKey());
                 listOfPublicKeys.add(outputState.currentCity.getOwningKey());
-
-                Set<PublicKey> listOfParticipantPublicKeys = outputState.getParticipants().stream().map(AbstractParty::getOwningKey).collect(Collectors.toSet());
+                listOfPublicKeys.add(inputState.currentCity.getOwningKey());
+                Set<PublicKey> setOfPublicKeys = new HashSet<>(listOfPublicKeys);
 
                 List<PublicKey> arrayOfSigners = command.getSigners();
                 Set<PublicKey> setOfSigners = new HashSet<>(arrayOfSigners);
-                require.using("The borrower, old city and new city only must sign an IOU change transaction", setOfSigners.equals(listOfParticipantPublicKeys) && setOfSigners.size() == 2);
+                require.using("The borrower, old city and new city only must sign an IOU change transaction", setOfSigners.equals(setOfPublicKeys) && setOfSigners.size() == 2);
 
                 return null;
             });

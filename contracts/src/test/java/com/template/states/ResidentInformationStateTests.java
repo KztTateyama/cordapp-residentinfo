@@ -69,16 +69,7 @@ public class ResidentInformationStateTests {
         // Does the birthday field exist?
         Field birthdayField = ResidentInformationState.class.getDeclaredField("birthday");
         // Is the birthday field of the correct type?
-        assertTrue(birthdayField.getType().isAssignableFrom(Date.class));
-    }
-
-    /* TODO: Add an 'oldCity' property of type {@link Party} to the {@link ResidentInformationState} class to get this test to pass. */
-    @Test
-    public void hasOldCityFieldOfCorrectType() throws NoSuchFieldException {
-        // Does the oldCity field exist?
-        Field oldCityField = ResidentInformationState.class.getDeclaredField("oldCity");
-        // Is the oldCity field of the correct type?
-        assertTrue(oldCityField.getType().isAssignableFrom(Party.class));
+        assertTrue(birthdayField.getType().isAssignableFrom(String.class));
     }
 
     /* TODO: Add an 'oldAddress' property of type {@link String} to the {@link ResidentInformationState} class to get this test to pass. */
@@ -91,57 +82,24 @@ public class ResidentInformationStateTests {
     }
 
     /**
-     * Task 5.
-     * TODO: Include the oldCity within the {@link ResidentInformationState#getParticipants()} list
-     * Hint: [Arrays.asList()] takes any number of parameters and will add them to the list
-     */
-    @Test
-    public void oldCityIsParticipant() {
-
-        try {
-            ResidentInformationState residentA =
-                    new ResidentInformationState(
-                            "Yamada Taro",
-                            "123456789012",
-                            BCity.getParty(),
-                            "BCity YYY-ZZZ",
-                            sdformat.parse("1990-02-10"),
-                            ACity.getParty(),
-                            "ACity XXX-YYY"
-                    );
-
-            assertNotEquals(residentA.getParticipants().indexOf(ACity.getParty()), -1);
-
-        } catch (ParseException e){
-            e.printStackTrace();
-        }
-
-    }
-
-    /**
      * Task 6.
      * TODO: Include the currentCity within the {@link ResidentInformationState#getParticipants()} list
      * Hint: [Arrays.asList()] takes any number of parameters and will add them to the list
      */
     @Test
     public void currentCityIsParticipant() {
-        try {
-            ResidentInformationState residentA =
-                    new ResidentInformationState(
-                            "Yamada Taro",
-                            "123456789012",
-                            BCity.getParty(),
-                            "BCity YYY-ZZZ",
-                            sdformat.parse("1990-02-10"),
-                            ACity.getParty(),
-                            "ACity XXX-YYY"
-                    );
 
-            assertNotEquals(residentA.getParticipants().indexOf(BCity.getParty()), -1);
+       ResidentInformationState residentA =
+               new ResidentInformationState(
+                       "Yamada Taro",
+                       "123456789012",
+                       BCity.getParty(),
+                       "BCity YYY-ZZZ",
+                       "1990-02-10",
+                       "ACity XXX-YYY"
+               );
 
-        } catch (ParseException e){
-            e.printStackTrace();
-        }
+       assertNotEquals(residentA.getParticipants().indexOf(BCity.getParty()), -1);
 
     }
 
@@ -161,15 +119,13 @@ public class ResidentInformationStateTests {
         int currentCityIdx = fields.indexOf(ResidentInformationState.class.getDeclaredField("currentCity"));
         int currentAddressIdx = fields.indexOf(ResidentInformationState.class.getDeclaredField("currentAddress"));
         int birthdayIdx = fields.indexOf(ResidentInformationState.class.getDeclaredField("birthday"));
-        int oldCityIdx = fields.indexOf(ResidentInformationState.class.getDeclaredField("oldCity"));
         int oldAddressIdx = fields.indexOf(ResidentInformationState.class.getDeclaredField("oldAddress"));
 
         assertTrue(residentNameIdx < myNumberIdx);
         assertTrue(myNumberIdx < currentCityIdx);
         assertTrue(currentCityIdx < currentAddressIdx);
         assertTrue(currentAddressIdx < birthdayIdx);
-        assertTrue(birthdayIdx < oldCityIdx);
-        assertTrue(oldCityIdx < oldAddressIdx);
+        assertTrue(birthdayIdx < oldAddressIdx);
     }
 
     /**
@@ -179,24 +135,18 @@ public class ResidentInformationStateTests {
      */
     @Test
     public void checkwithNewCurrentCityHelperMethod() {
-        try {
-            ResidentInformationState residentA =
-                    new ResidentInformationState(
-                            "Yamada Taro",
-                            "123456789012",
-                            BCity.getParty(),
-                            "BCity YYY-ZZZ",
-                            sdformat.parse("1990-02-10"),
-                            ACity.getParty(),
-                            "ACity XXX-YYY"
-                    );
+       ResidentInformationState residentA =
+               new ResidentInformationState(
+                       "Yamada Taro",
+                       "123456789012",
+                       BCity.getParty(),
+                       "BCity YYY-ZZZ",
+                       "1990-02-10",
+                       "ACity XXX-YYY"
+               );
 
-            assertEquals(XCity.getParty(), residentA.withNewCurrentCity(XCity.getParty(),"XCity aaa-bbb").getCurrentCity());
-            assertEquals("XCity aaa-bbb", residentA.withNewCurrentCity(XCity.getParty(),"XCity aaa-bbb").getCurrentAddress());
-
-        } catch (ParseException e){
-            e.printStackTrace();
-        }
+       assertEquals(XCity.getParty(), residentA.withNewCurrentCity(XCity.getParty(),"XCity aaa-bbb").getCurrentCity());
+       assertEquals("XCity aaa-bbb", residentA.withNewCurrentCity(XCity.getParty(),"XCity aaa-bbb").getCurrentAddress());
     }
 
 }

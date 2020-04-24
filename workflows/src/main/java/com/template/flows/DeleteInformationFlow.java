@@ -1,7 +1,5 @@
 package com.template.flows;
 
-//import com.google.common.collect.ImmutableList;
-
 import co.paralleluniverse.fibers.Suspendable;
 import com.template.contracts.ResidentInformationContract;
 import com.template.states.ResidentInformationState;
@@ -16,6 +14,7 @@ import net.corda.core.transactions.SignedTransaction;
 import net.corda.core.transactions.TransactionBuilder;
 import net.corda.core.utilities.ProgressTracker;
 
+import java.util.Collections;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -55,7 +54,6 @@ public class DeleteInformationFlow {
             // 2. Get a reference to the inputState data that we are going to settle.
             Vault.Page results = getServiceHub().getVaultService().queryBy(ResidentInformationState.class, queryCriteria);
             StateAndRef inputStateAndRefToChange = (StateAndRef) results.getStates().get(0);
-//            ResidentInformationState inputStateToChange = (ResidentInformationState) inputStateAndRefToChange.getState().getData();
 
             // Step 1. Get a reference to the notary service on our network and our key pair.
             // Note: ongoing work to support multiple notary identities is still in progress.
@@ -76,28 +74,10 @@ public class DeleteInformationFlow {
             builder.verify(getServiceHub());
             final SignedTransaction ptx = getServiceHub().signInitialTransaction(builder);
 
-
-              // Step 6. Collect the other party's signature using the SignTransactionFlow.
-//            List<Party> otherParties = residentA.getParticipants()
-//                    .stream().map(el -> (Party) el)
-//                    .collect(Collectors.toList());
-
-//            otherParties.remove(getOurIdentity());
-
-//            SignedTransaction stx = subFlow(new CollectSignaturesFlow(ptx, sessions));
-//
-//            // Step 7. Assuming no exceptions, we can now finalise the transaction
-//            return subFlow(new FinalityFlow(stx, sessions));
-
-//            List<FlowSession> sessions = !getServiceHub().getMyInfo().isLegalIdentity(notary)
-//                    ? Collections.singletonList(initiateFlow(notary)):Collections.emptyList();
-
-//            return subFlow(new FinalityFlow(ptx, ImmutableList.of()));
-
-//            List<FlowSession> sessions = Collections.emptyList();
-
-            //return subFlow(new FinalityFlow(ptx, sessions));      // <- error
-            return subFlow(new FinalityFlow(ptx));                  // <- normal
+            // Step 6. The second argument of FinalityFlow should be empty,
+            // as no signatures on other nodes are needed.
+            List<FlowSession> sessions = Collections.emptyList();
+            return subFlow(new FinalityFlow(ptx, sessions));
 
         }
     }
