@@ -89,13 +89,13 @@ public class ResidentInformationContract implements Contract {
                 ResidentInformationState outputState = tx.outputsOfType(ResidentInformationState.class).get(0);
 
                 require.using("residentName is same between input state and output state.",
-                        outputState.residentName.equals(inputState.residentName));
+                        inputState.residentName.equals(outputState.residentName));
 
                 require.using("myNumber is same between input state and output state.",
-                        outputState.myNumber.equals(inputState.myNumber));
+                        inputState.myNumber.equals(outputState.myNumber));
 
                 require.using("birthday is same between input state and output state.",
-                        outputState.birthday.equals(inputState.birthday));
+                        inputState.birthday.equals(outputState.birthday));
 
                 require.using("input state's currentAddress and output state's oldAddress must be equals.",
                         inputState.currentAddress.equals(outputState.oldAddress));
@@ -103,7 +103,7 @@ public class ResidentInformationContract implements Contract {
                 require.using("input state's currentAddress and output state's currentAddress must change.",
                         !inputState.currentAddress.equals(outputState.currentAddress));
 
-                require.using("The currentCity property must change in a transfer.", !outputState.currentCity.getOwningKey().equals(inputState.currentCity.getOwningKey()));
+                require.using("The currentCity property must change in a transfer.", !inputState.currentCity.getOwningKey().equals(outputState.currentCity.getOwningKey()));
 
                 // Compare State key and Signers key for equality.
                 List<PublicKey> listOfPublicKeys = new ArrayList<>();
